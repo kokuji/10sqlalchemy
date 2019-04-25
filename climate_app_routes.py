@@ -51,7 +51,7 @@ def precipitation():
         dates_dict = {}
         dates_dict["Date"] = date
         dates_dict["Prcp"] = prcp
-        all_dates.append(dates_dict)
+        all_prcp.append(dates_dict)
 
     return jsonify(all_prcp)
 
@@ -60,15 +60,14 @@ def station():
     results_station = session.query(Station.station).all()
 
     all_stations = []
-    for station in results_station:
-        station_dict = {}
-        all_stations.append(station_dict)
+    # for station in results_station:
+    #     station_dict = {}
+    #     all_stations.append(station_dict)
+
+    return jsonify(results_station)
 
 # Find most recent date in data set
     session.query(Measurement.date).order_by(Measurement.date.desc()).first()
-
-# Calculate the date a year from the last data point for date in the database
-    query_date = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
 @app.route("/api/v1.0/tobs")
 def tobs():
@@ -91,11 +90,11 @@ def tobs():
 
 @app.route("/api/v1.0/<start>")
 @app.route("/api/v1.0/<start>/<end>")
-def calc_temps():
-    if not end:
+def calc_temps(start_date, end_date):
+    if not end_date:
         return session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
             filter(Measurement.date >= start_date).all()
-        TMIN, TAVG, TMAX = calc_temps('2017-07-01', '2017-07-08')[0]
+        TMIN, TAVG, TMAX = calc_temps('2017-07-01')[0]
     else:
         return session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
             filter(Measurement.date >= start_date).filter(Measurement.date <= end_date).all()
