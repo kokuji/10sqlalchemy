@@ -5,6 +5,7 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 import datetime as dt
+import numpy as np
 
 
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
@@ -31,7 +32,9 @@ def home():
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/tobs<br/>")
+        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/temp/start<br/>"
+        f"/api/v1.0/temp/start/end")
 
 
 # 4. Define what to do when a user hits the /about route
@@ -67,20 +70,19 @@ def station():
     return jsonify(results_station)
 
 # Find most recent date in data set
-    session.query(Measurement.date).order_by(Measurement.date.desc()).first()
 
 @app.route("/api/v1.0/tobs")
 def tobs():
     # Query all dates
     query_date = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     sel = [Measurement.date, Measurement.tobs]
-    results_temp = session.query(*sel).\
-        filter(Measurement.date > query_date).\
-        order_by(Measurement.date).all()
+    highest_tobs = session.query(*sel).\
+    filter(Measurement.station == "USC00519281").\
+    filter(Measurement.date > query_date).all()
 
     # Create a dictionary from the row data and append to a list
     all_temps = []
-    for date, tobs in results_temp:
+    for date, tobs in highest_tobs:
         temps_dict = {}
         temps_dict["Date"] = date
         temps_dict["Temp"] = tobs
@@ -88,28 +90,23 @@ def tobs():
 
     return jsonify(all_temps)
 
-@app.route("/api/v1.0/<start>")
-@app.route("/api/v1.0/<start>/<end>")
-def calc_temps(start_date, end_date):
-    if not end_date:
-        return session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-            filter(Measurement.date >= start_date).all()
-        TMIN, TAVG, TMAX = calc_temps('2017-07-01')[0]
+@app.route("/api/v1.0/temp/<start>")
+@app.route("/api/v1.0/temp/<start>/<end>")
+def calc_temps(start = None, end = None):
+    if not end:
+        results_temp = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+            filter(Measurement.date >= start).all()
+        
     else:
-        return session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-            filter(Measurement.date >= start_date).filter(Measurement.date <= end_date).all()
-        TMIN, TAVG, TMAX = calc_temps('2017-07-01', '2017-07-08')[0]
+        results_temp = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+            filter(Measurement.date >= start).\
+            filter(Measurement.date <= end).all()
+        
 
     # Create a dictionary from the row data and append to a list
-    all_calcs = []
-    for TMIN, TAVG, TMAX in calc_temps:
-        temps_dict = {}
-        temps_dict["TMIN"] = TMIN
-        temps_dict["TAVG"] = TAVG
-        temps_dict["TMAX"] = TMAX
-        all_temps.append(temps_dict)
+    temps = list(np.ravel(results_temp))
 
-    return jsonify(all_calcs)
+    return jsonify(temps)
 
 
 if __name__ == "__main__":
